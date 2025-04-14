@@ -13,3 +13,46 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+
+
+model User{
+  id String @id @default(cuid())
+  userName String @unique
+  email String @unique
+  password String
+  item Item[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([email,id])
+}
+
+model Item{
+  id String @id @default(cuid())
+  userId String 
+  user User @relation(fields: [userId], references: [id])
+  type Type 
+  subType SubType
+  productName String
+  productImgUrl String
+  productDescription String
+  price Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([id])
+}
+
+enum Type{
+  Electronics
+  Non_Electronics
+}
+
+enum SubType{
+  Mobile
+  TV
+  Laptop
+  Fridge
+  Bike
+  Car
+  HotWheel
+}

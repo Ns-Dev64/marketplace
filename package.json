@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",
-    "hono": "^4.7.6"
+    "bcryptjs": "^3.0.2",
+    "hono": "^4.7.6",
+    "ioredis": "^5.6.0"
   }
 }
