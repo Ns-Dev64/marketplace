@@ -11,11 +11,12 @@ export const authMiddleware=async(c:Context,next:Next)=>{
 
     const token=authHeader.split(' ')[1]!,
     payload= await verify(token,process.env.JWT_SECRET || "");
-    const session=await getString(`session:${payload.uid}`);
-    
+    const session=await getString(`session:${payload.id}`);
+
     if(!session || session !==token)
         return c.text('Invalid session',401);
     
     c.set('jwtPayload',payload);
     await next();
 }
+

@@ -1,7 +1,7 @@
 import type {Context,Next} from "hono"
 
 
-export const validator=async(fields:string[])=>{
+export const validator=(fields:string[])=>{
 
     return async (c:Context,next:Next)=>{
         const body=await c.req.json();

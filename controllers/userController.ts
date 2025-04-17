@@ -9,27 +9,30 @@ const prismaClient=await getPrismaClient();
 export const loginHandler = async (
     c:Context
   ) => {
-  
+    let user;
     const body = await c.req.json();
-    const {email,userName,password}=body;
+    const {identifier,password}=body;
 
-    let user=await prismaClient.user.findFirst({
-      where:{
-        OR:[
-          {email:email},
-          {userName:userName}
-        ]
-      }
-    })
-  
+    user=await getString(`user:${identifier}`);
+    if(!user){
+       user=await prismaClient.user.findFirst({
+        where:{
+          OR:[
+            {email:identifier},
+            {userName:identifier}
+          ]
+        }
+      });
+      await setString(`user:${identifier}`,user,120)
+    }
     if(!user) return c.text('Invalid User',401);
-
+    
     if(!await bcrypt.compare(password,user?.password!)) return c.text('Invalid password',401);
 
-    const jwtPayload=sign(user,process.env.JWT_SECRET || "");
+    const jwtPayload=await sign({id:user.id,userName:user.userName},process.env.JWT_SECRET || "");
     await setString(`session:${user.id}`,jwtPayload);
    
-    return c.json({message:"User signed in successfully",data:user},200);
+    return c.json({message:"User signed in successfully",data:jwtPayload},200);
     
   };
 
@@ -41,14 +44,15 @@ export const registerHandler=async(c:Context)=>{
   let user=await prismaClient.user.findFirst({
     where:{
       OR:[
-        {email:email}
+        {email:email},
+        {userName:userName}
       ]
     }
   })
   
-  if(user) return c.text("Email already registered",401);
+  if(user) return c.text("Email/username already registered",401);
 
-  await prismaClient.user.create({
+  const registeredUser=await prismaClient.user.create({
     data:{
       email:email,
       password:await bcrypt.hash(password,10),
@@ -56,30 +60,42 @@ export const registerHandler=async(c:Context)=>{
     },
   })
 
+  await Promise.all([
+    setString(`user:${registeredUser.email}`,registeredUser,120),
+    setString(`user:${registeredUser.userName}`,registeredUser,120)
+  ])
+
   return c.json({message:"user created successfully"})
   
 }
 
-export const userInfo=async(c:Context)=>{
+export const status=async(c:Context)=>{
 
   let user=c.get("jwtPayload");
 
   if(!user) return c.text('Invalid user',400);
 
-  let cacheValue=await getString(`user:${user.id}`);
-  if(cacheValue) return c.json({message:'user found',data:user});
+  return c.json({message:"User logged in.",data:user})
+}
+
+export const getUser=async(c:Context)=>{
+
+  const uid= c.req.query('uid');
+
+  if(!uid) return c.text("Invalid uid",401);
+
+  let cacheValue=await getString(`user:${uid}`);
+  if(cacheValue) return c.json({message:'user found',data:cacheValue});
 
   const dbUser=await prismaClient.user.findFirst({
     where:{
-      id:user.id
+      id:uid
     }
   })
   if(!dbUser) return c.text('Error occured while processing user',400);
 
-  await setString(`user:${user.id}`,dbUser);
+  await setString(`user:${uid}`,dbUser);
   
   return c.json({message:"User sent", data:dbUser});
-
 }
-
 
