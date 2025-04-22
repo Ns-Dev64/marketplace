@@ -15,6 +15,10 @@ export async function getString(key:string) {
     return JSON.parse(payload!);
 }
 
+export async function expireString(key:string){
+    if(!key) return '';
+    return await redisClient.del(key);
+}
 
 export async function variableAssets(dependentAsset:any,key:string,length:number){
     
@@ -32,4 +36,12 @@ export async function variableAssets(dependentAsset:any,key:string,length:number
     console.log(posts)
     await setString(key,mergedPosts);
     return mergedPosts
+}
+
+export async function createChat(participants:string[]){
+    let key=""
+    participants.map(item=>key.concat(`user:${item}`))
+
+    await redisClient.subscribe(key);
+
 }

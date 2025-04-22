@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { imageUploader, deleteImage } from "../helpers/helper";
+import { imageUploader, deleteImage, isSamePublicId } from "../helpers/helper";
 import { getPrismaClient } from "../database/init";
 import { setString, getString, variableAssets } from '../database/operations';
 import { sign } from "hono/jwt";
@@ -10,25 +10,29 @@ export const createItem = async (c: Context) => {
 
     const form = await c.req.formData();
 
-    const file = form.get("image") as File;
+    const files = form.getAll("images") as File[];
     const productName = form.get("name")?.toString() || "";
     const productDescription = form.get("description")?.toString() || "";
     const price = Number(form.get("price"));
     const type = form.get("type")?.toString() || "";
     const subType = form.get("subType")?.toString() || "";
 
-    if (!file || file.type.split('/')[0] !== 'image') {
-        return c.text('Invalid image file', 400)
+    for(const file of files){
+        if (!file || file.type.split('/')[0] !== 'image') {
+            return c.text('Invalid image file', 400)
+        }
     }
 
-    const user=c.get("jwtPayload")
-    const uploadedImage = await imageUploader(file);
+    const user=c.get("jwtPayload");
+    const uploadedImage = await Promise.all(files.map(async file=> await imageUploader(file,`user:${user.id}`)));
+    console.log(uploadedImage)
+    const secureUrls= uploadedImage.map(image => image.secure_url);
 
     const item = await prismaClient.item.create({
         data: {
             productName: productName,
             productDescription: productDescription,
-            productImgUrl:uploadedImage.secure_url,
+            productImgUrl:secureUrls,
             type:type as Type,
             subType:subType as SubType,
             userId:user.id,
@@ -117,15 +121,83 @@ export const updatePostParams=async(c:Context)=>{
 
 export const deletImage=async(c:Context)=>{
 
-    const postId= c.req.query("pid");
+    const publicId= c.req.query("iid");
+    const postId=c.req.query("pid");
 
-    if(!postId) return c.text("Invalid Post",400);
+    if(!publicId || !publicId) return c.text("Error occured while deleting Image",401);
 
+    const post=await fetchPost(`item:${postId}`);
+
+    if(!post) return c.text("Invalid Post",400);
+
+    const res=await deleteImage(publicId);
+    if(res.result!=="ok") return c.text(res.result,400);
     
+    const secure_urls:string[]=post.productImgUrl.filter((url:string)=> !isSamePublicId(url,publicId))
+    
+    await prismaClient.item.update({
+        where:{
+            id:postId
+        },
+        data:{
+            productImgUrl:{
+                set:[...secure_urls]
+            }
+        }
+    })
+
+    return c.json({message:"Image deleted successfully",data:{image:publicId}})
     
 }
 
-async function fetchPost(postId:string):Promise<{}> {
+export const updateImagePost=async(c:Context)=>{
+
+  const body=await c.req.formData();
+  
+    const postId=body.get("pid")?.toString();
+    const publicId=body.get("iid")?.toString();
+    const file=body.get("image") as File
+    let secure_urls:string[]=[];
+
+    if (!file || file.type.split('/')[0] !== 'image') {
+        return c.text('Invalid image file', 400)
+    }
+
+    if(!postId) return c.text("Error occured while deleting Image",401);
+
+    const user=c.get("jwtPayload");
+    const post=await fetchPost(`item:${postId}`);
+    
+    if(!post) return c.text("Invalid Post",400);
+   
+    if(publicId){
+        const res=await deleteImage(publicId);
+        if(res.result!=="ok") return c.text(res.result,400);
+        secure_urls=post.productImgUrl.filter((url:string) => !isSamePublicId(url,postId));
+    }
+
+    else secure_urls=post.productImgUrl
+    
+    const uploader=await imageUploader(file,`user:${user.id}`);
+
+    const updatedPost=await prismaClient.item.update({
+        where:{
+            id:postId
+        },
+        data:{
+           productImgUrl:{
+            set:[...secure_urls,uploader.secure_url]
+           } 
+        }
+    })
+
+    await setString(`item:${postId}`,updatedPost);
+
+    return c.json({message:'Image updated successfully'},200)
+
+}
+
+async function fetchPost(postId:string) {
 
     if(!postId) return {}
         const cachedPost=await getString(`item:${postId}`);

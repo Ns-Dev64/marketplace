@@ -5,6 +5,10 @@ import {v2 as cloudinary} from "cloudinary"
 
 let redisClient:Redis | null=null, prismaClient:PrismaClient | null=null;
 
+let pubClient:Redis | null=null, subClient:Redis | null=null;
+
+
+
  cloudinary.config({
     cloud_name:"dubmrfndl",
     api_key:process.env.CLOUDINARY_API_KEY,
@@ -19,6 +23,14 @@ export async function getRedisClient() {
 export async function getPrismaClient(){
     if(!prismaClient) prismaClient= new PrismaClient();
     return prismaClient;
+}
+
+export async function pubSubClient(){
+
+    if(!pubClient) pubClient= new Redis();
+    if(!subClient) subClient=new Redis();
+
+    return {publisher:pubClient,subscriber:subClient}
 }
 
 export default cloudinary

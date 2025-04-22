@@ -23,6 +23,9 @@ model User{
   password String
   item Item[]
   delete Boolean?
+  messages  Message[] @relation("UserMessages")
+  room Room[]
+  messageRead MessageRead[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([email,userName,id])
@@ -35,12 +38,53 @@ model Item{
   type Type 
   subType SubType
   productName String
-  productImgUrl String
+  productImgUrl String[]
   productDescription String
   price Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([id,userId])
+}
+
+model Room {
+  id        String     @id @default(cuid())
+  name      String?    // optional (null for 1-1 chats)
+  isGroup   Boolean    @default(false)
+  messages  Message[]
+  users     User[] 
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([id])
+}
+
+
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  sender    User     @relation("UserMessages", fields: [senderId], references: [id])
+  senderId  String
+  chat      Room     @relation(fields: [roomId], references: [id])
+  roomId    String
+  readBy    MessageRead[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+}
+
+model MessageRead {
+  id        String   @id @default(cuid())
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+
+  @@index([id])
 }
 
 enum Type{

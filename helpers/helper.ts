@@ -1,5 +1,8 @@
 import {Readable} from "stream"
 import cloudinary from "../database/init";
+import { createHash } from "crypto";
+
+const regex=/\/upload\/[^/]+\/(.*?)\.(jpg|jpeg|png|webp|gif)$/;
 
 export function bufferToStream(buffer:Buffer):Readable{
 
@@ -11,7 +14,7 @@ export function bufferToStream(buffer:Buffer):Readable{
 }
 
 
-export async function imageUploader(file:File) :Promise<any>{
+export async function imageUploader(file:File,parent:string) :Promise<any>{
 
     
     const arrayBuffer=await file.arrayBuffer();
@@ -19,7 +22,7 @@ export async function imageUploader(file:File) :Promise<any>{
 
     const uploader=await new Promise((res,rej)=>{
         const stream= cloudinary.uploader.upload_stream(
-            {folder:'item-uploads'},
+            {folder:`${parent}-uploads/item-uploads`},
             (err,result)=>{
                 if(err) rej(err);
                 else res(result)
@@ -32,7 +35,7 @@ export async function imageUploader(file:File) :Promise<any>{
 
 }
 
-export async function deleteImage(publicId:string)  {
+export async function deleteImage(publicId:string )  {
     
     try{
         const result=await cloudinary.uploader.destroy(publicId);
@@ -44,21 +47,28 @@ export async function deleteImage(publicId:string)  {
 
 }
 
+export function isoTimeString() :string {
+    return new Date().toISOString()
+}
 
-export  function extractPublicId(id:string | string[]) {
+  function extractPublicId(id:string)  {
+    let matches;
+        matches=id.match(regex);
+        return matches ? matches[1] : null; 
+}
+
+
+ function extractPublicIds(ids:String[]){
 
     let matches;
-    const regex=/\/upload\/[^/]+\/(.*?)\.(jpg|jpeg|png|webp|gif)$/;
-    if(!Array.isArray(id)){
-        matches=id.match(regex);
-        return matches ? matches[1] : null;
-    }
-
-    else{
-        return id.map(url => {
-            const matches = url.match(/\/upload\/[^/]+\/(.*?)\.(jpg|jpeg|png|webp|gif)$/);
-            return matches ? matches[1] : null;
-          });
-    }
+    return ids.map(item=>{
+        matches=item.match(regex);
+        return matches ? matches[1]:null
+    })
 
 }
+
+export function isSamePublicId(url:string,publicId:string){
+    return extractPublicId(url)===publicId;
+}
+
