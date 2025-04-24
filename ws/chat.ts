@@ -1,4 +1,4 @@
-import { getPrismaClient, pubSubClient } from "../database/init";
+import { getPrismaClient } from "../database/init";
 import { expireString, getString,setString } from "../database/operations";
 import type { Context } from "hono";
 
@@ -139,11 +139,13 @@ async function createRoom(users:string[],name:string|null=null){
         data:name?{
             name:name,
             isGroup:true,
+            roomSlug:groupRoomSlugGenerator(users),
             users:{
                 connect:users.map((id)=>({id})),
             }
         }:{
             isGroup:false,
+            roomSlug:dmRoomSlugGenerator(users),
             users:{
                 connect:users.map((id)=>({id})),
             }
@@ -152,7 +154,19 @@ async function createRoom(users:string[],name:string|null=null){
             id:true,
             name:true,
             createdAt:true,
+            users:{
+                select:{
+                    id:true
+                }
+            },
+            updatedAt:true,
         }:{
+            users:{
+                select:{
+                    id:true
+                }
+            },
+            updatedAt:true,
             id:true,
             createdAt:true
         }
@@ -187,4 +201,53 @@ async function findRoom(roomId:string){
     await setString(`room:${roomId}`,{users:room.users.sort(),createdAt:room.createdAt,updatedAt:room.updatedAt},3600);
 
     return room;
+}
+
+export function dmRoomSlugGenerator(userIds: string[]): string {
+
+  const uids=Array.from(userIds);
+    const [u1, u2] = uids.sort();
+    return `dm_${u1}_${u2}`;
+  }
+
+
+
+export function groupRoomSlugGenerator(users:string[]){
+    const sorted = [...users].sort(); 
+
+    return `group_${sorted.join("_")}`;
+}
+
+
+export async function findRoomUsingSlug(users:string[],isGroup:boolean=false) {
+    const sortedUsers=users.sort();
+
+    const slug=isGroup ? groupRoomSlugGenerator(sortedUsers) : dmRoomSlugGenerator(sortedUsers);
+
+
+    const room=await prismaClient.room.findFirst({
+        where:{
+            roomSlug:slug
+        },
+        select:{
+            id:true,
+            createdAt:true,
+            users:{
+                select:{
+                    id:true
+                }
+            },
+            updatedAt:true,
+        }
+    })
+    
+    if(!room) return null;
+
+    await setString(`room:${room.id}`,{
+        users:room.users,
+        createdAt:room.createdAt,
+        updatedAt:room.updatedAt
+    })
+
+    return room
 }

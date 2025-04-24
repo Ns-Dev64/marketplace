@@ -49,13 +49,14 @@ model Item{
 model Room {
   id        String     @id @default(cuid())
   name      String?    // optional (null for 1-1 chats)
+  roomSlug  String
   isGroup   Boolean    @default(false)
   messages  Message[]
   users     User[] 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  @@index([id])
+  @@index([id,roomSlug])
 }
 
 
@@ -71,7 +72,7 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([id])
+  @@index([id,senderId,roomId])
 }
 
 model MessageRead {
@@ -84,7 +85,7 @@ model MessageRead {
 
   @@unique([messageId, userId])
 
-  @@index([id])
+  @@index([id,messageId])
 }
 
 enum Type{
