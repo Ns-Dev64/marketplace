@@ -11,7 +11,7 @@ initQueue(QUEUE_NAME);
 console.log('queue initialized')
 
 await processQueue(QUEUE_NAME,async ()=>{
-
+   try{
     console.log('queue proccessing')
     const rawMsgs=await getFromList('pendingMessages',0,-1);
 
@@ -29,10 +29,12 @@ await processQueue(QUEUE_NAME,async ()=>{
       })
 
     await expireString('pendingMessages');
+   }catch(e){
+    console.log(e)
+   }
 },CONNECTION_STRING);
 
-await processErrorQueue(CONNECTION_STRING,async ()=>{
+await processErrorQueue(CONNECTION_STRING,async (job)=>{
 
   console.log("error queue processing");
-
 })

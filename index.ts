@@ -5,11 +5,13 @@ import userRouter from "./routes/userRoutes";
 import itemRoutes from "./routes/itemRoutes";
 import { wsAuthenticator } from "./ws/auth";
 import { wsHandler } from "./ws/handler";
+import chatRoutes from "./routes/chatRoutes";
 const app=new Hono();
 
 app.use(logger());
 app.route('/api/v1/user',userRouter);
 app.route('/api/v1/item',itemRoutes);
+app.route('/api/v1/chat',chatRoutes);
 
 
 Bun.serve({

@@ -1,16 +1,17 @@
-import { getRedisClient,getPrismaClient } from "./database/init";
+import { getRedisClient, getPrismaClient } from "./database/init";
 
+export const start = {
+  async startAll() {
+    try {
+      await Promise.all([
+        getRedisClient(),
+        getPrismaClient()
+      ]);
+      console.log("✅ Initialized DB and cache");
 
-export const start={
-
-    async startAll(){
-        try{
-            await Promise.all([
-                getRedisClient(), getPrismaClient()
-            ])
-            console.log("Initialized db and cache")
-        }catch(e){
-            console.error("Error occured while connecting",e)
-        }
+      
+    } catch (e) {
+      console.error("❌ Error occurred while connecting:", e);
     }
+  }
 }
