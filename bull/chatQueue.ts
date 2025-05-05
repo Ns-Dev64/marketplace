@@ -7,7 +7,6 @@ const QUEUE_NAME="chat-queue-ws";
 const prismaClient=await getPrismaClient();
 
 
-initQueue(QUEUE_NAME);
 console.log('queue initialized')
 
 await processQueue(QUEUE_NAME,async ()=>{

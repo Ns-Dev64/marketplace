@@ -1,5 +1,6 @@
+import type { Message } from "../generated/prisma"
 
-export interface room{
+export type room={
     id:string,
     users:{
         id:string
@@ -8,9 +9,19 @@ export interface room{
     updatedAt:Date
 }
 
-export interface chatPayload{
+export type chatPayload={
     room:string | undefined,
     content:string,
     createdAt:string,
     senderId:string
+}
+
+export type markMessage={
+    messageId:string,
+    userId:string | string[],
+}
+
+export type cursorChat={
+    chat:Message[],
+    nextCursor:Date | null
 }

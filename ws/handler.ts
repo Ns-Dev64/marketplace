@@ -6,9 +6,11 @@ import { addRPush, setString, getString, expireString } from "../database/operat
 import {
   createDM,
   createGroup,
-  findRoomUsingSlug
+  findRoomBySlug,
+  findRoomUsingUsers,
+  getUserIdFromMessage
 } from "./chat";
-import type { chatPayload, room } from "./chat.types";
+import type { chatPayload, markMessage, room } from "./chat.types";
 import { addToQueue } from "../bull/producer";
 import { initQueue } from "../bull/init";
 
@@ -27,6 +29,8 @@ export const wsHandler = {
         await handleInit(ws, data);
       } else if (data.type === "message") {
         await handleMessage(ws, data);
+      }else if(data.type==="read"){
+        await handleRead(ws,data);
       }
     } catch (err) {
       console.error("Invalid WS message:", err);
@@ -54,46 +58,83 @@ async function handleInit(ws: ServerWebSocket<User | any>, data: any) {
   ws.send(`You've connected successfully ${userId}`);
 }
 
+async function handleRead(ws:ServerWebSocket<User | any>,data:any) {
+  let {messageId,userId,senderId}=data;
 
-async function handleMessage(ws: ServerWebSocket<User | any>, data: any) {
-  const { name, toUserId, fromUserId, content } = data;
-
-  if (!toUserId || !fromUserId || !content) {
-    return ws.send('Please fill all the fields');
+  if(!messageId || !userId) return ws.send('');
+  
+  const payload:markMessage={
+    messageId:messageId,
+    userId:userId
   }
 
-  const isRoom = Array.isArray(toUserId);
-  const uids: string[] = isRoom ? [fromUserId, ...toUserId] : [fromUserId, toUserId];
-  const arrayUser = Array.from(uids);
+  if(!senderId) senderId=await getUserIdFromMessage(senderId);
+  if(!senderId) return ws.send('error occured while fetching message/message deleted');
 
-  let room = await findOrCreateRoom(arrayUser, isRoom, name);
+  const senderSocket=await getUserSocket(senderId);
+
+  await enqueueMessage('message-read-ws','markMessage',payload);
+
+  senderSocket?.send(JSON.stringify(`ACK [MESSAGE SEEN BY ${userId} ]`));
+
+
+}
+
+async function handleMessage(ws: ServerWebSocket<User | any>, data: any) {
+  const { roomSlug,name, toUserId, fromUserId, content } = data;
+
+  let isRoom:boolean,uids:string[],arrayUser:string[],room;
+
+  if(toUserId){
+    let multiUids=Array.isArray(toUserId);
+    uids = multiUids ? [fromUserId, ...toUserId] : [fromUserId, toUserId];
+    arrayUser = Array.from(uids);
+    room = await findOrCreateRoom(arrayUser, multiUids, name);
+  }
+
+  else if(roomSlug){
+    room=await fetchRoomUsingSlug(roomSlug);
+    if(typeof room==="string") return ws.send('Room does not exist');
+  }
+
+  const receiverIds=room?.users.filter((item)=>item.id!=fromUserId)!;
+
+  isRoom=receiverIds.length > 1 ? true :false;
 
   const payload: chatPayload = createChatPayload(content, room?.id, fromUserId);
 
-    console.log(payload);
   await addRPush('pendingMessages', JSON.stringify(payload));
-  await enqueueMessage(payload);
+  await enqueueMessage('chat-queue-ws','flushMessages',payload);
 
   const receiverUserSocket = isRoom 
-  ? await Promise.all(toUserId.map(item => getUserSocket(item)))
-  : await getUserSocket(toUserId);  const senderUserSocket = await getUserSocket(fromUserId);
+  ? await Promise.all(receiverIds.map(item => getUserSocket(item.id)))
+  : await getUserSocket(receiverIds[0]!.id);  
 
-  if(!Array.isArray(receiverUserSocket)) receiverUserSocket?.send(JSON.stringify(content));
-  else receiverUserSocket.forEach((item)=>item?.send(JSON.stringify(content)));
+  const senderUserSocket = await getUserSocket(fromUserId);
+
+  if(!Array.isArray(receiverUserSocket)) receiverUserSocket?.send(JSON.stringify(payload));
+  else receiverUserSocket.forEach((item)=>item?.send(JSON.stringify(payload)));
 
   senderUserSocket?.send("ACK [200]");
 }
 
 
 
-async function findOrCreateRoom(arrayUser: string[], isRoom: boolean, name: string) {
-  let room: room | null = await findRoomUsingSlug(arrayUser, isRoom);
+async function findOrCreateRoom(arrayUser: string[], isRoom: boolean, name: string) :Promise<room>{
+  let room: room | null = await findRoomUsingUsers(arrayUser, isRoom);
   if (!room) {
     room = isRoom ? await createGroup(arrayUser, name) : await createDM(arrayUser);
   }
-  return room;
+  return room!;
 }
 
+async function fetchRoomUsingSlug(roomSlug:string) :Promise<room|string>{
+  const room:room | null=await findRoomBySlug(roomSlug);
+  
+  if(!room) return "";
+
+  return room;
+}
 
 function createChatPayload(content: string, roomId: string | undefined, senderId: string): chatPayload {
   return {
@@ -105,9 +146,9 @@ function createChatPayload(content: string, roomId: string | undefined, senderId
 }
 
 
-async function enqueueMessage(payload: chatPayload) {
-  const messageQueue = initQueue('chat-queue-ws');
-  await addToQueue(messageQueue, 'flushMessages', payload);
+async function enqueueMessage(queueName:string,jobName:string,payload: chatPayload | markMessage) {
+  const messageQueue = initQueue(queueName);
+  await addToQueue(messageQueue,jobName, payload);
 }
 
 
@@ -118,3 +159,4 @@ async function getUserSocket(userId: string): Promise<ServerWebSocket | undefine
   }
   return userSocket;
 }
+
