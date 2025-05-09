@@ -8,6 +8,10 @@ import { wsHandler } from "./ws/handler";
 import chatRoutes from "./routes/chatRoutes";
 const app=new Hono();
 
+const instanceId=parseInt(Bun.env.NODE_APP_INSTANCE || "0");
+const basePort=parseInt(Bun.env.PORT || "5001" );
+const port=basePort+instanceId;
+
 app.use(logger());
 app.route('/api/v1/user',userRouter);
 app.route('/api/v1/item',itemRoutes);
@@ -15,7 +19,8 @@ app.route('/api/v1/chat',chatRoutes);
 
 
 Bun.serve({
-    port:process.env.PORT,
+    hostname:"localhost",
+    port:port,
     async fetch(req,server){
         
         if(req.headers.get("upgrade")==="websocket"){

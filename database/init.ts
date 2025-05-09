@@ -11,8 +11,8 @@ let pubClient:Redis | null=null, subClient:Redis | null=null;
 
  cloudinary.config({
     cloud_name:"dubmrfndl",
-    api_key:process.env.CLOUDINARY_API_KEY,
-    api_secret:process.env.CLOUDINARY_API_SECRET
+    api_key:Bun.env.CLOUDINARY_API_KEY,
+    api_secret:Bun.env.CLOUDINARY_API_SECRET
 })
 
 export async function getRedisClient() {

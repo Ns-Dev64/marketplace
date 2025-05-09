@@ -24,8 +24,8 @@ export const createItem = async (c: Context) => {
     }
 
     const user=c.get("jwtPayload");
+
     const uploadedImage = await Promise.all(files.map(async file=> await imageUploader(file,`user:${user.id}`)));
-    console.log(uploadedImage)
     const secureUrls= uploadedImage.map(image => image.secure_url);
 
     const item = await prismaClient.item.create({
@@ -124,7 +124,7 @@ export const deletImage=async(c:Context)=>{
     const publicId= c.req.query("iid");
     const postId=c.req.query("pid");
 
-    if(!publicId || !publicId) return c.text("Error occured while deleting Image",401);
+    if(!publicId || !postId) return c.text("Error occured while deleting Image",401);
 
     const post=await fetchPost(`item:${postId}`);
 

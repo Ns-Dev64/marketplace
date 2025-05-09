@@ -61,7 +61,7 @@ async function handleInit(ws: ServerWebSocket<User | any>, data: any) {
 async function handleRead(ws:ServerWebSocket<User | any>,data:any) {
   let {messageId,userId,senderId}=data;
 
-  if(!messageId || !userId) return ws.send('');
+  if(!messageId || !userId) return ws.send('Enter the required fields.');
   
   const payload:markMessage={
     messageId:messageId,

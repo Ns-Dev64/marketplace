@@ -9,6 +9,6 @@ const userRouter=new Hono();
 userRouter.post('/register',validator(['email','password','userName']),registerHandler);
 userRouter.post('/login',validator(['identifier','password']),loginHandler);
 userRouter.get('/status',authMiddleware,status);
-userRouter.get("/get",authMiddleware,getUser);
+userRouter.get("/get",getUser);
 
 export default userRouter

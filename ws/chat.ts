@@ -344,3 +344,29 @@ export async function getUserIdFromMessage(messageId:string) :Promise<string> {
     return uid.senderId;
 
 }
+
+export async function checkIfRead(messageId:string){
+    
+    if(!messageId) return '';
+
+    const cachedUids=await getString(`message:${messageId}:readBy`);
+    if(cachedUids) return cachedUids;
+
+    const uids=await prismaClient.messageRead.findFirst({
+        where:{
+            id:messageId
+        },
+        select:{
+            user:{
+                select:{
+                    id:true
+                }
+            }
+        }
+    });
+    if(!uids) return '';
+
+    await setString(`message:${messageId}:readBy`,uids.user);
+
+
+}

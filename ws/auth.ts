@@ -6,7 +6,7 @@ export const wsAuthenticator=async(req:Request)=>{
     if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
 
     const token=authHeader.split(' ')[1]!,
-    payload= await verify(token,process.env.JWT_SECRET || "");
+    payload= await verify(token,Bun.env.JWT_SECRET || "");
     const session=await getString(`session:${payload.id}`);
 
     if(!session || session !==token) return null

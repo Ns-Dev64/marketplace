@@ -29,7 +29,7 @@ export const loginHandler = async (
     
     if(!await bcrypt.compare(password,user?.password!)) return c.text('Invalid password',401);
 
-    const jwtPayload=await sign({id:user.id,userName:user.userName},process.env.JWT_SECRET || "");
+    const jwtPayload=await sign({id:user.id,userName:user.userName},Bun.env.JWT_SECRET || "");
     await setString(`session:${user.id}`,jwtPayload);
    
     return c.json({message:"User signed in successfully",data:jwtPayload},200);
