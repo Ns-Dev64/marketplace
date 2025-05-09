@@ -8,7 +8,7 @@ import { wsHandler } from "./ws/handler";
 import chatRoutes from "./routes/chatRoutes";
 const app=new Hono();
 
-const instanceId=parseInt(Bun.env.NODE_APP_INSTANCE || "0");
+const instanceId=parseInt(Bun.env.WORKER_ID || "0");
 const basePort=parseInt(Bun.env.PORT || "5001" );
 const port=basePort+instanceId;
 
